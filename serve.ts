@@ -1,90 +1,116 @@
 /**
- * Static HTTP server for Neon Coast Cover Studio.
- * Serves static assets from the app/ directory on 127.0.0.1:8080.
- * Standard library only (node:http, node:fs, node:path, node:url).
+ * Neon Coast Cover Studio - Static File Server
+ * Minimal Node 22 stdlib HTTP server for local offline serving.
  */
 
-import { createServer } from 'node:http';
-import { statSync, createReadStream } from 'node:fs';
-import { resolve, join, extname } from 'node:path';
+import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const HOST = '127.0.0.1';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const APP_DIR = path.resolve(__dirname, 'app');
+
 const PORT = 8080;
+const HOST = '127.0.0.1';
 
-const baseDir = fileURLToPath(new URL('.', import.meta.url));
-const publicDir = resolve(baseDir, 'app');
-
-const MIME_MAP: Record<string, string> = {
+const MIME_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.js': 'application/javascript; charset=utf-8',
   '.mjs': 'application/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
   '.woff2': 'font/woff2',
   '.woff': 'font/woff',
   '.ttf': 'font/ttf',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.gif': 'image/gif',
   '.svg': 'image/svg+xml',
-  '.txt': 'text/plain; charset=utf-8',
+  '.ico': 'image/x-icon',
+  '.txt': 'text/plain; charset=utf-8'
 };
 
-const server = createServer((req, res) => {
-  if (!req.url) {
-    res.writeHead(400, { 'Content-Type': 'text/plain' });
-    res.end('Bad Request');
+const server = http.createServer((req, res) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    res.writeHead(405, { 'Content-Type': 'text/plain' });
+    res.end('Method Not Allowed');
     return;
   }
 
   try {
-    const parsedUrl = new URL(req.url, `http://${HOST}:${PORT}`);
-    let pathname = decodeURIComponent(parsedUrl.pathname);
+    const parsedUrl = new URL(req.url || '/', `http://${HOST}:${PORT}`);
+    let decodedPath = decodeURIComponent(parsedUrl.pathname);
 
-    // Normalize path and prevent directory traversal
-    let filePath = resolve(publicDir, '.' + pathname);
+    // Default to index.html if root or directory
+    if (decodedPath.endsWith('/')) {
+      decodedPath += 'index.html';
+    }
 
-    if (!filePath.startsWith(publicDir)) {
+    // Path traversal guard
+    const targetPath = path.normalize(path.join(APP_DIR, decodedPath));
+    if (!targetPath.startsWith(APP_DIR)) {
       res.writeHead(403, { 'Content-Type': 'text/plain' });
-      res.end('Access Denied');
+      res.end('403 Forbidden');
       return;
     }
 
-    try {
-      const stat = statSync(filePath);
-      if (stat.isDirectory()) {
-        filePath = join(filePath, 'index.html');
+    fs.stat(targetPath, (err, stats) => {
+      if (err || !stats) {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('404 Not Found');
+        return;
       }
-    } catch {
-      res.writeHead(404, { 'Content-Type': 'text/plain' });
-      res.end('Not Found');
-      return;
-    }
 
-    const stat = statSync(filePath);
-    if (!stat.isFile()) {
-      res.writeHead(404, { 'Content-Type': 'text/plain' });
-      res.end('Not Found');
-      return;
-    }
+      if (stats.isDirectory()) {
+        const indexPath = path.join(targetPath, 'index.html');
+        fs.stat(indexPath, (indexErr, indexStats) => {
+          if (indexErr || !indexStats) {
+            res.writeHead(404, { 'Content-Type': 'text/plain' });
+            res.end('404 Not Found');
+            return;
+          }
+          sendFile(indexPath, indexStats, req, res);
+        });
+        return;
+      }
 
-    const ext = extname(filePath).toLowerCase();
-    const contentType = MIME_MAP[ext] || 'application/octet-stream';
-
-    res.writeHead(200, {
-      'Content-Type': contentType,
-      'Content-Length': stat.size,
-      'Cache-Control': 'no-cache',
+      sendFile(targetPath, stats, req, res);
     });
-
-    createReadStream(filePath).pipe(res);
   } catch (err) {
     res.writeHead(500, { 'Content-Type': 'text/plain' });
-    res.end('Internal Server Error');
+    res.end('500 Internal Server Error');
   }
 });
 
+function sendFile(filePath: string, stats: fs.Stats, req: http.IncomingMessage, res: http.ServerResponse) {
+  const ext = path.extname(filePath).toLowerCase();
+  const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+
+  res.writeHead(200, {
+    'Content-Type': contentType,
+    'Content-Length': stats.size,
+    'Cache-Control': 'no-cache',
+    'Access-Control-Allow-Origin': '*'
+  });
+
+  if (req.method === 'HEAD') {
+    res.end();
+    return;
+  }
+
+  const stream = fs.createReadStream(filePath);
+  stream.on('error', () => {
+    if (!res.headersSent) {
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+    }
+    res.end('Error streaming file');
+  });
+  stream.pipe(res);
+}
+
 server.listen(PORT, HOST, () => {
-  console.log(`Neon Coast Cover Studio serving app at http://${HOST}:${PORT}`);
+  console.log(`Neon Coast Server listening on http://${HOST}:${PORT}`);
 });

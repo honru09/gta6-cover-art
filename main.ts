@@ -1,63 +1,65 @@
 /**
- * Entry submission runner for Neon Coast Cover Studio (make.fun gta6-cover-art-01).
- * Packages the offline web application and screenshots into the output directory,
- * then generates dossier.json matching the platform evaluator specification.
+ * Neon Coast Cover Studio - Packaging and Dossier Builder
+ * Prepares /output bundle with app/ and screenshots/ and generates dossier.json.
  */
 
-import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { resolve, join } from 'node:path';
+import fs from 'node:fs';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-app.ts';
 
-// Platform intake constraints
-const EVALUATION_CONSTRAINTS = {
-  text_max_bytes: 163840,
-  screenshots: { max: 4, max_bytes: 262144 },
-  app_max_files: 993,
-  app_max_bytes: 50331648,
-  app_path_max_bytes: 1000,
-};
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-function deployAppAssets(sourceDir: string, targetDir: string): void {
-  const sourceApp = join(sourceDir, 'app');
-  const targetApp = join(targetDir, 'app');
+async function runPackaging(): Promise<void> {
+  const targetDir: string = process.env.MAKEFUN_OUTPUT_DIR || '/output';
+  const outPath: string = path.resolve(targetDir);
 
-  mkdirSync(targetApp, { recursive: true });
-  cpSync(sourceApp, targetApp, { recursive: true });
-}
+  const appSource: string = path.resolve(__dirname, 'app');
+  const appDestination: string = path.join(outPath, 'app');
 
-function deployScreenshots(sourceDir: string, targetDir: string): void {
-  const sourceScreenshots = join(sourceDir, 'screenshots');
-  const targetScreenshots = join(targetDir, 'screenshots');
+  const screenshotsSource: string = path.resolve(__dirname, 'screenshots');
+  const screenshotsDestination: string = path.join(outPath, 'screenshots');
 
-  mkdirSync(targetScreenshots, { recursive: true });
-  if (existsSync(sourceScreenshots)) {
-    cpSync(sourceScreenshots, targetScreenshots, { recursive: true });
+  // Prepare clean output structure
+  if (fs.existsSync(outPath)) {
+    fs.rmSync(outPath, { recursive: true, force: true });
   }
+  fs.mkdirSync(outPath, { recursive: true });
+
+  // Copy app directory tree
+  if (fs.existsSync(appSource)) {
+    fs.cpSync(appSource, appDestination, { recursive: true });
+  } else {
+    throw new Error(`Source app directory missing at: ${appSource}`);
+  }
+
+  // Copy screenshots directory tree
+  if (fs.existsSync(screenshotsSource)) {
+    fs.cpSync(screenshotsSource, screenshotsDestination, { recursive: true });
+  } else {
+    fs.mkdirSync(screenshotsDestination, { recursive: true });
+  }
+
+  // Generate deterministic dossier.json using vendored makefun-app library
+  const dossierBytes = buildDossier(outPath, {
+    text_max_bytes: 163840,
+    screenshots: {
+      max: 4,
+      max_bytes: 262144
+    },
+    app_max_files: 993,
+    app_max_bytes: 50331648,
+    app_path_max_bytes: 1000
+  });
+
+  const dossierFile: string = path.join(outPath, 'dossier.json');
+  fs.writeFileSync(dossierFile, dossierBytes);
+
+  console.log(`Bundle created successfully at ${outPath} (${dossierBytes.length} bytes dossier)`);
 }
 
-function produceDossier(targetDir: string): void {
-  const dossierContent = buildDossier(targetDir, EVALUATION_CONSTRAINTS);
-  const dossierPath = join(targetDir, 'dossier.json');
-  writeFileSync(dossierPath, dossierContent, 'utf-8');
-}
-
-function run(): void {
-  const projectRoot = fileURLToPath(new URL('.', import.meta.url));
-  const outputDirectory = process.env.MAKEFUN_OUTPUT_DIR
-    ? resolve(process.env.MAKEFUN_OUTPUT_DIR)
-    : '/output';
-
-  mkdirSync(outputDirectory, { recursive: true });
-
-  // Stage application files and evidence images
-  deployAppAssets(projectRoot, outputDirectory);
-  deployScreenshots(projectRoot, outputDirectory);
-
-  // Generate metadata report for jury evaluation
-  produceDossier(outputDirectory);
-
-  console.log(`Successfully packaged Neon Coast Cover Studio to: ${outputDirectory}`);
-}
-
-run();
+runPackaging().catch((err: unknown) => {
+  console.error('Packaging failed:', err);
+  process.exit(1);
+});

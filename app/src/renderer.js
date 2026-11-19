@@ -1,228 +1,245 @@
 /**
- * Canvas 2D rendering engine for Neon Coast Cover Studio.
- * Renders multi-panel GTA 6-style cover art posters with authentic typography and effects.
+ * Neon Coast Cover Studio - Canvas 2D Renderer
+ * Renders multi-panel layouts, color grading, Anton sunset lettering, Pacifico neon script,
+ * wanted heat stars, badge ribbons, grain, and vignette.
  */
 
-import { computeLayout } from './layouts.js';
-import { applyGrade } from './grades.js';
+import { LAYOUTS } from './layouts.js';
+import { GRADES } from './grades.js';
 
-/**
- * Draws a 5-point star on the canvas context.
- */
-function drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius) {
-  let rot = (Math.PI / 2) * 3;
-  let x = cx;
-  let y = cy;
-  const step = Math.PI / spikes;
-
-  ctx.beginPath();
-  ctx.moveTo(cx, cy - outerRadius);
-  for (let i = 0; i < spikes; i++) {
-    x = cx + Math.cos(rot) * outerRadius;
-    y = cy + Math.sin(rot) * outerRadius;
-    ctx.lineTo(x, y);
-    rot += step;
-
-    x = cx + Math.cos(rot) * innerRadius;
-    y = cy + Math.sin(rot) * innerRadius;
-    ctx.lineTo(x, y);
-    rot += step;
+export class CoverRenderer {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d', { willReadFrequently: true });
+    this.fontsLoaded = false;
   }
-  ctx.lineTo(cx, cy - outerRadius);
-  ctx.closePath();
-}
 
-/**
- * Renders the full cover art composition onto the target canvas.
- * @param {HTMLCanvasElement} canvas
- * @param {object} state
- */
-export function renderCover(canvas, state) {
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  const W = canvas.width;
-  const H = canvas.height;
-  const scale = W / 1080; // Base scale reference against 1080px square
+  async initFonts() {
+    if (document.fonts && document.fonts.ready) {
+      await document.fonts.ready;
+    }
+    this.fontsLoaded = true;
+  }
 
-  // 1. Dark foundational background
-  ctx.fillStyle = '#0a0a0f';
-  ctx.fillRect(0, 0, W, H);
+  render(state, options = {}) {
+    const { isExport = false, activePanel = 0 } = options;
+    const { width, height } = this.canvas;
+    const ctx = this.ctx;
 
-  // 2. Compute Layout Geometries
-  const layoutData = computeLayout(state.layout || 'four_panel', W, H);
+    // 1. Base Canvas Clear & Background
+    ctx.save();
+    ctx.fillStyle = '#0b0914';
+    ctx.fillRect(0, 0, width, height);
 
-  // Draw background palm/neon atmosphere if tilted snapshot
-  if (state.layout === 'tilted_snapshot') {
-    const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
-    bgGrad.addColorStop(0, '#120a1f');
-    bgGrad.addColorStop(0.5, '#240b36');
-    bgGrad.addColorStop(1, '#0c0714');
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, W, H);
+    // Subtle neon ambient glow in background
+    const bgGlow = ctx.createRadialGradient(
+      width * 0.5, height * 0.45, width * 0.1,
+      width * 0.5, height * 0.5, width * 0.75
+    );
+    bgGlow.addColorStop(0, 'rgba(255, 42, 133, 0.12)');
+    bgGlow.addColorStop(0.6, 'rgba(0, 240, 255, 0.05)');
+    bgGlow.addColorStop(1, 'rgba(11, 9, 20, 0.95)');
+    ctx.fillStyle = bgGlow;
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
 
-    // Subtle retro grid lines
-    ctx.strokeStyle = 'rgba(255, 42, 109, 0.12)';
-    ctx.lineWidth = 2 * scale;
-    const gridStep = 45 * scale;
-    for (let gy = 0; gy < H; gy += gridStep) {
-      ctx.beginPath();
-      ctx.moveTo(0, gy);
-      ctx.lineTo(W, gy);
-      ctx.stroke();
+    // 2. Layout & Panels
+    const layout = LAYOUTS[state.layout] || LAYOUTS.four_grid;
+    const panels = layout.getPanels(width, height);
+
+    // Render photo into each panel
+    panels.forEach((panel) => {
+      this.renderPanelPhoto(panel, state);
+    });
+
+    // 3. Panel Borders & Dividers
+    this.renderPanelBorders(panels, layout, state);
+
+    // 4. Color Grade (applied to photo compositions)
+    const grade = GRADES[state.grade] || GRADES.sunset;
+    const imgData = ctx.getImageData(0, 0, width, height);
+    grade.apply(imgData);
+    ctx.putImageData(imgData, 0, 0);
+
+    // 5. Film Grain Effect
+    if (state.effects && state.effects.grain) {
+      this.applyGrain(ctx, width, height);
+    }
+
+    // 6. Vignette Falloff
+    if (state.effects && state.effects.vignette) {
+      this.applyVignette(ctx, width, height);
+    }
+
+    // 7. Center Card for 9-Panel Layout
+    if (layout.id === 'nine_grid' && layout.getCenterCard) {
+      const centerCard = layout.getCenterCard(width, height);
+      this.renderCenterTitleCard(centerCard, state);
+    } else {
+      // 8. Typography & Title Banner for other layouts
+      this.renderTitleBanner(layout, state);
+    }
+
+    // 9. Badge Ribbon
+    if (state.effects && state.effects.badge && state.captions.badge) {
+      this.renderBadgeRibbon(state.captions.badge);
+    }
+
+    // 10. Editor Active Panel Highlight
+    if (!isExport && panels.length > 1) {
+      const active = panels.find(p => p.id === activePanel);
+      if (active) {
+        this.renderActivePanelHighlight(active);
+      }
     }
   }
 
-  // 3. Render Each Panel
-  const photo = state.photo;
-  if (layoutData.panels) {
-    layoutData.panels.forEach((p, idx) => {
-      ctx.save();
+  renderPanelPhoto(panel, state) {
+    const ctx = this.ctx;
+    const img = state.image;
+    if (!img || !img.complete || img.naturalWidth === 0) return;
 
-      // Handle tilted snapshots
-      if (p.angle) {
-        ctx.translate(p.x, p.y);
-        ctx.rotate(p.angle);
-        ctx.translate(-p.w / 2, -p.h / 2);
-
-        // Polaroid card drop shadow
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
-        ctx.shadowBlur = 24 * scale;
-        ctx.shadowOffsetX = 6 * scale;
-        ctx.shadowOffsetY = 12 * scale;
-        ctx.fillStyle = '#f8f8fa';
-        ctx.fillRect(-8 * scale, -8 * scale, p.w + 16 * scale, p.h + 40 * scale);
-        ctx.shadowColor = 'transparent';
-
-        // Clip image area
-        ctx.beginPath();
-        ctx.rect(0, 0, p.w, p.h);
-        ctx.clip();
-      } else {
-        // Standard comic panel clip
-        ctx.beginPath();
-        ctx.rect(p.x, p.y, p.w, p.h);
-        ctx.clip();
-      }
-
-      // Draw photo with pan & zoom
-      if (photo && photo.complete && photo.naturalWidth > 0) {
-        // Dynamic multi-angle crops per panel for authentic comic poster feel
-        const defaultOffsets = [
-          { panX: -45, panY: -35, zoom: 1.4 },  // Close-up portrait
-          { panX: 65, panY: -15, zoom: 1.15 },  // Scene / horizon
-          { panX: -30, panY: 70, zoom: 1.55 },  // Action / hands
-          { panX: 40, panY: 55, zoom: 1.05 },   // Scenery
-          { panX: 0, panY: -50, zoom: 1.5 },
-          { panX: 50, panY: 30, zoom: 1.2 },
-          { panX: -60, panY: 20, zoom: 1.35 },
-          { panX: 20, panY: -40, zoom: 1.25 },
-        ];
-        let def = defaultOffsets[idx % defaultOffsets.length];
-        if (state.layout === 'story_strip') {
-          if (idx === 0) def = { panX: 0, panY: 90, zoom: 1.25 };
-          else if (idx === 1) def = { panX: 0, panY: 0, zoom: 1.15 };
-          else def = { panX: 0, panY: -90, zoom: 1.25 };
-        } else if (state.layout === 'full_bleed') {
-          def = { panX: 0, panY: 140, zoom: 1.0 };
-        }
-
-        const userOffset = state.panelOffsets && state.panelOffsets[p.id];
-        const zoom = Math.max(0.5, Math.min(3, (userOffset ? userOffset.zoom : def.zoom)));
-        const panX = ((userOffset ? userOffset.panX : def.panX) || 0) * scale;
-        const panY = ((userOffset ? userOffset.panY : def.panY) || 0) * scale;
-
-        // Cover aspect fill
-        const imgAspect = photo.naturalWidth / photo.naturalHeight;
-        const panelAspect = p.w / p.h;
-
-        let drawW, drawH;
-        if (imgAspect > panelAspect) {
-          drawH = p.h * zoom;
-          drawW = drawH * imgAspect;
-        } else {
-          drawW = p.w * zoom;
-          drawH = drawW / imgAspect;
-        }
-
-        const originX = p.angle ? 0 : p.x;
-        const originY = p.angle ? 0 : p.y;
-        const drawX = originX + (p.w - drawW) / 2 + panX;
-        const drawY = originY + (p.h - drawH) / 2 + panY;
-
-        ctx.drawImage(photo, drawX, drawY, drawW, drawH);
-
-        // Apply selected color grade to this panel
-        if (state.grade) {
-          applyGrade(ctx, state.grade, originX, originY, p.w, p.h);
-        }
-      } else {
-        // Placeholder gradient if photo is not loaded
-        const grad = ctx.createLinearGradient(p.x, p.y, p.x + p.w, p.y + p.h);
-        grad.addColorStop(0, '#2d114d');
-        grad.addColorStop(1, '#ff2a6d');
-        ctx.fillStyle = grad;
-        ctx.fillRect(p.angle ? 0 : p.x, p.angle ? 0 : p.y, p.w, p.h);
-      }
-
-      ctx.restore();
-
-      // Outer panel frame (thick black border)
-      if (!p.angle) {
-        ctx.strokeStyle = '#050508';
-        ctx.lineWidth = Math.max(4, 7 * scale);
-        ctx.strokeRect(p.x, p.y, p.w, p.h);
-      }
-    });
-  }
-
-  // 4. Center emblem block for nine_panel layout
-  if (layoutData.centerEmblem) {
-    const e = layoutData.centerEmblem;
     ctx.save();
-    ctx.fillStyle = '#0f051d';
-    ctx.fillRect(e.x, e.y, e.w, e.h);
 
-    // Neon frame around center block
-    const emblemGrad = ctx.createLinearGradient(e.x, e.y, e.x + e.w, e.y + e.h);
-    emblemGrad.addColorStop(0, '#ff2a6d');
-    emblemGrad.addColorStop(0.5, '#00f5d4');
-    emblemGrad.addColorStop(1, '#ffc837');
-    ctx.strokeStyle = emblemGrad;
-    ctx.lineWidth = 5 * scale;
-    ctx.strokeRect(e.x, e.y, e.w, e.h);
+    // Panel transform / clipping
+    if (panel.isTilted) {
+      ctx.translate(panel.cx, panel.cy);
+      ctx.rotate(panel.rotation);
+      // Photo frame area inside polaroid border
+      const photoW = panel.w * 0.88;
+      const photoH = panel.h * 0.76;
+      const photoY = -panel.h * 0.08;
 
-    // Palm tree silhouette icon in center
-    ctx.fillStyle = 'rgba(255, 42, 109, 0.15)';
-    ctx.fillRect(e.x + 8 * scale, e.y + 8 * scale, e.w - 16 * scale, e.h - 16 * scale);
+      ctx.beginPath();
+      ctx.rect(-photoW / 2, photoY - photoH / 2, photoW, photoH);
+      ctx.clip();
+      this.drawTransformedImage(img, -photoW / 2, photoY - photoH / 2, photoW, photoH, state, panel.id);
+    } else {
+      ctx.beginPath();
+      ctx.rect(panel.x, panel.y, panel.w, panel.h);
+      ctx.clip();
+      this.drawTransformedImage(img, panel.x, panel.y, panel.w, panel.h, state, panel.id);
+    }
+
     ctx.restore();
   }
 
-  // 5. Global Vignette
-  if (state.vignette > 0) {
-    const vRadius = Math.max(W, H) * 0.75;
-    const vigGrad = ctx.createRadialGradient(W / 2, H / 2, vRadius * 0.35, W / 2, H / 2, vRadius);
-    vigGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-    vigGrad.addColorStop(1, `rgba(5, 2, 12, ${0.75 * state.vignette})`);
-    ctx.fillStyle = vigGrad;
-    ctx.fillRect(0, 0, W, H);
+  drawTransformedImage(img, x, y, w, h, state, panelId) {
+    const ctx = this.ctx;
+    const defaultPanY = (state.layout === 'full_bleed' && panelId === 0) ? 140 : 0;
+    const transform = (state.panelTransforms && state.panelTransforms[panelId]) || {
+      zoom: 1.0,
+      panX: 0,
+      panY: defaultPanY
+    };
+
+    // Calculate aspect fill
+    const imgAspect = img.naturalWidth / img.naturalHeight;
+    const panelAspect = w / h;
+
+    let baseW, baseH;
+    if (imgAspect > panelAspect) {
+      baseH = h;
+      baseW = h * imgAspect;
+    } else {
+      baseW = w;
+      baseH = w / imgAspect;
+    }
+
+    const scale = Math.max(0.2, transform.zoom);
+    const finalW = baseW * scale;
+    const finalH = baseH * scale;
+
+    const centerX = x + w / 2;
+    const centerY = y + h / 2;
+
+    const drawX = centerX - finalW / 2 + transform.panX;
+    const drawY = centerY - finalH / 2 + transform.panY;
+
+    ctx.drawImage(img, drawX, drawY, finalW, finalH);
   }
 
-  // 6. Global Film Grain
-  if (state.grain > 0) {
+  renderPanelBorders(panels, layout, state) {
+    const ctx = this.ctx;
+    const { width, height } = this.canvas;
+
+    if (layout.id === 'tilted_snapshot') {
+      panels.forEach((p) => {
+        ctx.save();
+        ctx.translate(p.cx, p.cy);
+        ctx.rotate(p.rotation);
+
+        // Snapshot Polaroid frame
+        const pw = p.w;
+        const ph = p.h;
+
+        // Shadow
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+        ctx.shadowBlur = 25;
+        ctx.shadowOffsetY = 12;
+
+        // White/cream card
+        ctx.fillStyle = '#faf8f5';
+        ctx.fillRect(-pw / 2, -ph / 2, pw, ph);
+
+        // Reset shadow
+        ctx.shadowColor = 'transparent';
+
+        // Inner border around photo
+        const photoW = pw * 0.88;
+        const photoH = ph * 0.76;
+        const photoY = -ph * 0.08;
+        ctx.strokeStyle = '#2b233a';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(-photoW / 2, photoY - photoH / 2, photoW, photoH);
+
+        // Bottom neon accent dot or line
+        ctx.fillStyle = 'rgba(255, 42, 133, 0.7)';
+        ctx.fillRect(-pw * 0.15, ph * 0.36, pw * 0.3, 4);
+
+        ctx.restore();
+      });
+      return;
+    }
+
+    if (layout.id === 'full_bleed') {
+      // Solid outer border
+      ctx.strokeStyle = '#100c1e';
+      ctx.lineWidth = 8;
+      ctx.strokeRect(4, 4, width - 8, height - 8);
+      return;
+    }
+
+    // Grid & Strip borders
+    panels.forEach((p) => {
+      ctx.save();
+      // Outer dark border
+      ctx.strokeStyle = '#0d0b16';
+      ctx.lineWidth = 6;
+      ctx.strokeRect(p.x, p.y, p.w, p.h);
+
+      // Subtle inner neon glow
+      ctx.strokeStyle = 'rgba(0, 240, 255, 0.25)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(p.x + 3, p.y + 3, p.w - 6, p.h - 6);
+      ctx.restore();
+    });
+  }
+
+  applyGrain(ctx, width, height) {
     const grainCanvas = document.createElement('canvas');
     grainCanvas.width = 128;
     grainCanvas.height = 128;
     const gCtx = grainCanvas.getContext('2d');
     const gData = gCtx.createImageData(128, 128);
     const d = gData.data;
-    const intensity = state.grain * 42;
 
     for (let i = 0; i < d.length; i += 4) {
-      const noise = (Math.random() - 0.5) * intensity;
-      const v = Math.min(255, Math.max(0, 128 + noise));
+      const v = (Math.random() * 255) | 0;
       d[i] = v;
       d[i + 1] = v;
       d[i + 2] = v;
-      d[i + 3] = Math.floor(state.grain * 38);
+      d[i + 3] = 22; // subtle opacity
     }
     gCtx.putImageData(gData, 0, 0);
 
@@ -230,175 +247,362 @@ export function renderCover(canvas, state) {
     ctx.globalCompositeOperation = 'overlay';
     const pattern = ctx.createPattern(grainCanvas, 'repeat');
     ctx.fillStyle = pattern;
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(0, 0, width, height);
     ctx.restore();
   }
 
-  // 7. Badge Ribbon
-  if (state.showBadge !== false && state.badgeText) {
+  applyVignette(ctx, width, height) {
     ctx.save();
-    const ribbonText = (state.badgeText || 'VICE CITY NIGHTS').toUpperCase();
+    const rad = Math.max(width, height) * 0.75;
+    const vig = ctx.createRadialGradient(
+      width * 0.5, height * 0.5, rad * 0.35,
+      width * 0.5, height * 0.5, rad
+    );
+    vig.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    vig.addColorStop(0.7, 'rgba(8, 6, 16, 0.45)');
+    vig.addColorStop(1, 'rgba(4, 3, 10, 0.88)');
+
+    ctx.fillStyle = vig;
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+  }
+
+  renderTitleBanner(layout, state) {
+    const ctx = this.ctx;
+    const { width, height } = this.canvas;
+    const scale = width / 1080;
+
+    const bannerW = width * 0.88;
+    const bannerH = 194 * scale;
+    const bannerX = (width - bannerW) / 2;
+    // Lower third position
+    const bannerY = (layout.id === 'story_strip')
+      ? height * 0.74
+      : height * 0.75;
+
+    ctx.save();
+
+    // 1. Dark frosted backing card for clear text separation
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
+    ctx.shadowBlur = 30 * scale;
+    ctx.shadowOffsetY = 10 * scale;
+
+    ctx.fillStyle = 'rgba(12, 10, 24, 0.90)';
+    this.roundRect(ctx, bannerX, bannerY, bannerW, bannerH, 16 * scale);
+    ctx.fill();
+
+    // Neon Card Border
+    ctx.strokeStyle = 'rgba(255, 42, 133, 0.65)';
+    ctx.lineWidth = 2.5 * scale;
+    ctx.stroke();
+
+    // Subtle Cyan Corner Accents
+    ctx.strokeStyle = '#00f0ff';
+    ctx.lineWidth = 3 * scale;
+    const cornerSize = 18 * scale;
+    // Top-left corner
+    ctx.beginPath();
+    ctx.moveTo(bannerX, bannerY + cornerSize);
+    ctx.lineTo(bannerX, bannerY);
+    ctx.lineTo(bannerX + cornerSize, bannerY);
+    ctx.stroke();
+    // Top-right corner
+    ctx.beginPath();
+    ctx.moveTo(bannerX + bannerW - cornerSize, bannerY);
+    ctx.lineTo(bannerX + bannerW, bannerY);
+    ctx.lineTo(bannerX + bannerW, bannerY + cornerSize);
+    ctx.stroke();
+    // Bottom-left corner
+    ctx.beginPath();
+    ctx.moveTo(bannerX, bannerY + bannerH - cornerSize);
+    ctx.lineTo(bannerX, bannerY + bannerH);
+    ctx.lineTo(bannerX + cornerSize, bannerY + bannerH);
+    ctx.stroke();
+    // Bottom-right corner
+    ctx.beginPath();
+    ctx.moveTo(bannerX + bannerW - cornerSize, bannerY + bannerH);
+    ctx.lineTo(bannerX + bannerW, bannerY + bannerH);
+    ctx.lineTo(bannerX + bannerW, bannerY + bannerH - cornerSize);
+    ctx.stroke();
+
+    ctx.restore();
+
+    const centerX = width / 2;
+    const centerY = bannerY + bannerH / 2;
+
+    // 2. Heat Meter (Stars) - top line
+    const heatStars = state.heatLevel || 5;
+    const starY = centerY - 54 * scale;
+    this.drawStarRating(ctx, centerX, starY, heatStars, 5, 11 * scale);
+
+    // 3. Anton Title - middle line (sunset gradient + glow)
+    const titleText = (state.captions.title || 'SUNSET HEIST').toUpperCase();
+    const titleFontSize = Math.round(58 * scale);
+    ctx.font = `900 ${titleFontSize}px 'Anton', 'Impact', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    const titleY = centerY - 6 * scale;
+
+    // Title gradient fill
+    const grad = ctx.createLinearGradient(0, titleY - titleFontSize * 0.5, 0, titleY + titleFontSize * 0.5);
+    grad.addColorStop(0.0, '#fff677');
+    grad.addColorStop(0.35, '#ff8c00');
+    grad.addColorStop(0.75, '#ff1a75');
+    grad.addColorStop(1.0, '#9d12c9');
+
+    // Title drop shadow & glow
+    ctx.save();
+    ctx.shadowColor = 'rgba(255, 42, 133, 0.85)';
+    ctx.shadowBlur = 18 * scale;
+    ctx.shadowOffsetY = 4 * scale;
+
+    // Stroke
+    ctx.lineWidth = 8 * scale;
+    ctx.strokeStyle = '#0a0815';
+    ctx.lineJoin = 'miter';
+    ctx.miterLimit = 2;
+    ctx.strokeText(titleText, centerX, titleY);
+
+    // Fill
+    ctx.fillStyle = grad;
+    ctx.fillText(titleText, centerX, titleY);
+    ctx.restore();
+
+    // 4. Pacifico Subtitle - neon cursive script on bottom line
+    const subtitleText = state.captions.subtitle || 'Vice City Nights';
+    if (subtitleText.trim()) {
+      const subFontSize = Math.round(30 * scale);
+      ctx.font = `400 ${subFontSize}px 'Pacifico', cursive`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      const subY = centerY + 52 * scale;
+
+      ctx.save();
+      // Glowing neon cyan effect
+      ctx.shadowColor = '#00f0ff';
+      ctx.shadowBlur = 14 * scale;
+
+      ctx.lineWidth = 4 * scale;
+      ctx.strokeStyle = '#051824';
+      ctx.strokeText(subtitleText, centerX, subY);
+
+      ctx.fillStyle = '#baf7ff';
+      ctx.fillText(subtitleText, centerX, subY);
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
+  renderCenterTitleCard(card, state) {
+    const ctx = this.ctx;
+    const { x, y, w, h } = card;
+    const scale = w / 340;
+
+    ctx.save();
+    // Solid dark backdrop
+    ctx.fillStyle = '#0f0c1e';
+    ctx.fillRect(x, y, w, h);
+
+    // Border with neon pink accent
+    ctx.strokeStyle = 'rgba(255, 42, 133, 0.85)';
+    ctx.lineWidth = 4 * scale;
+    ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+
+    // Subtle inner cyan frame
+    ctx.strokeStyle = 'rgba(0, 240, 255, 0.4)';
+    ctx.lineWidth = 1.5 * scale;
+    ctx.strokeRect(x + 8 * scale, y + 8 * scale, w - 16 * scale, h - 16 * scale);
+
+    const centerX = x + w / 2;
+    const centerY = y + h / 2;
+
+    // 1. Stars at top
+    const heatStars = state.heatLevel || 5;
+    const starY = centerY - h * 0.28;
+    this.drawStarRating(ctx, centerX, starY, heatStars, 5, 8 * scale);
+
+    // 2. Anton Title
+    const titleText = (state.captions.title || 'SUNSET HEIST').toUpperCase();
+    const titleFontSize = Math.round(Math.min(38 * scale, (w - 20) / (titleText.length * 0.65)));
+    ctx.font = `900 ${titleFontSize}px 'Anton', 'Impact', sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    const titleY = centerY - 4 * scale;
+
+    const grad = ctx.createLinearGradient(0, titleY - titleFontSize * 0.5, 0, titleY + titleFontSize * 0.5);
+    grad.addColorStop(0.0, '#fff677');
+    grad.addColorStop(0.4, '#ff8c00');
+    grad.addColorStop(0.8, '#ff1a75');
+    grad.addColorStop(1.0, '#9d12c9');
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(255, 42, 133, 0.9)';
+    ctx.shadowBlur = 12 * scale;
+    ctx.lineWidth = 6 * scale;
+    ctx.strokeStyle = '#090714';
+    ctx.strokeText(titleText, centerX, titleY);
+
+    ctx.fillStyle = grad;
+    ctx.fillText(titleText, centerX, titleY);
+    ctx.restore();
+
+    // 3. Subtitle
+    const subtitleText = state.captions.subtitle || 'Vice City Nights';
+    if (subtitleText.trim()) {
+      const subFontSize = Math.round(22 * scale);
+      ctx.font = `400 ${subFontSize}px 'Pacifico', cursive`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      const subY = centerY + h * 0.26;
+
+      ctx.save();
+      ctx.shadowColor = '#00f0ff';
+      ctx.shadowBlur = 10 * scale;
+      ctx.lineWidth = 3 * scale;
+      ctx.strokeStyle = '#051824';
+      ctx.strokeText(subtitleText, centerX, subY);
+
+      ctx.fillStyle = '#c5f9ff';
+      ctx.fillText(subtitleText, centerX, subY);
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
+  drawStarRating(ctx, cx, cy, activeCount, total = 5, size = 10) {
+    const spacing = size * 2.5;
+    const startX = cx - ((total - 1) * spacing) / 2;
+
+    for (let i = 0; i < total; i++) {
+      const x = startX + i * spacing;
+      const isActive = i < activeCount;
+      this.drawStar(ctx, x, cy, 5, size, size * 0.45, isActive);
+    }
+  }
+
+  drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius, isActive) {
+    let rot = (Math.PI / 2) * 3;
+    let x = cx;
+    let y = cy;
+    const step = Math.PI / spikes;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - outerRadius);
+
+    for (let i = 0; i < spikes; i++) {
+      x = cx + Math.cos(rot) * outerRadius;
+      y = cy + Math.sin(rot) * outerRadius;
+      ctx.lineTo(x, y);
+      rot += step;
+
+      x = cx + Math.cos(rot) * innerRadius;
+      y = cy + Math.sin(rot) * innerRadius;
+      ctx.lineTo(x, y);
+      rot += step;
+    }
+    ctx.lineTo(cx, cy - outerRadius);
+    ctx.closePath();
+
+    if (isActive) {
+      ctx.shadowColor = 'rgba(255, 183, 3, 0.8)';
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = '#ffb703';
+      ctx.fill();
+
+      ctx.strokeStyle = '#fff199';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = '#2c2545';
+      ctx.fill();
+      ctx.strokeStyle = '#433b66';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  renderBadgeRibbon(text) {
+    const ctx = this.ctx;
+    const { width } = this.canvas;
+    const scale = width / 1080;
+
+    // Corner badge at top right
     const ribbonW = 280 * scale;
     const ribbonH = 34 * scale;
-    const ribbonX = 35 * scale;
-    const ribbonY = 40 * scale;
 
-    ctx.fillStyle = '#0f051d';
-    ctx.fillRect(ribbonX, ribbonY, ribbonW, ribbonH);
+    ctx.save();
+    ctx.translate(width - 95 * scale, 95 * scale);
+    ctx.rotate(Math.PI / 4); // 45 degrees
 
-    // Gold/Pink neon border
-    const borderGrad = ctx.createLinearGradient(ribbonX, ribbonY, ribbonX + ribbonW, ribbonY);
-    borderGrad.addColorStop(0, '#ff007f');
-    borderGrad.addColorStop(1, '#ffb703');
-    ctx.strokeStyle = borderGrad;
-    ctx.lineWidth = 2.5 * scale;
-    ctx.strokeRect(ribbonX, ribbonY, ribbonW, ribbonH);
+    // Shadow
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+    ctx.shadowBlur = 10 * scale;
+    ctx.shadowOffsetY = 4 * scale;
 
-    // Text inside badge
-    ctx.font = `800 ${14 * scale}px Anton, sans-serif`;
+    // Gradient background
+    const grad = ctx.createLinearGradient(-ribbonW / 2, 0, ribbonW / 2, 0);
+    grad.addColorStop(0, '#ff1a75');
+    grad.addColorStop(0.5, '#ff8c00');
+    grad.addColorStop(1, '#ff1a75');
+
+    ctx.fillStyle = grad;
+    ctx.fillRect(-ribbonW / 2, -ribbonH / 2, ribbonW, ribbonH);
+
+    // Border lines
+    ctx.strokeStyle = '#ffe894';
+    ctx.lineWidth = 1.5 * scale;
+    ctx.strokeRect(-ribbonW / 2, -ribbonH / 2, ribbonW, ribbonH);
+
+    // Text
+    ctx.shadowColor = 'transparent';
+    ctx.font = `800 ${Math.round(13 * scale)}px sans-serif`;
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(ribbonText, ribbonX + ribbonW / 2, ribbonY + ribbonH / 2);
+    ctx.letterSpacing = '1.5px';
+    ctx.fillText(text.toUpperCase(), 0, 0);
+
     ctx.restore();
   }
 
-  // 8. Heat Meter (Star Rating Row)
-  if (state.stars > 0) {
+  renderActivePanelHighlight(panel) {
+    const ctx = this.ctx;
     ctx.save();
-    const starCount = 5;
-    const activeStars = Math.min(5, Math.max(1, state.stars || 5));
-    const starSize = 16 * scale;
-    const starGap = 8 * scale;
-    const startX = W - (starCount * (starSize * 2 + starGap) + 30 * scale);
-    const startY = 55 * scale;
+    ctx.strokeStyle = '#00f0ff';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([8, 4]);
 
-    for (let s = 0; s < starCount; s++) {
-      const cx = startX + s * (starSize * 2 + starGap) + starSize;
-      const cy = startY;
-      const isActive = s < activeStars;
-
-      if (isActive) {
-        ctx.shadowColor = '#ff2a6d';
-        ctx.shadowBlur = 10 * scale;
-        ctx.fillStyle = '#ffd700'; // Gold star
-        ctx.strokeStyle = '#05020a';
-        ctx.lineWidth = 2 * scale;
-      } else {
-        ctx.shadowColor = 'transparent';
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
-        ctx.lineWidth = 1 * scale;
-      }
-
-      drawStar(ctx, cx, cy, 5, starSize, starSize * 0.45);
-      ctx.fill();
-      ctx.stroke();
+    if (panel.isTilted) {
+      ctx.translate(panel.cx, panel.cy);
+      ctx.rotate(panel.rotation);
+      ctx.strokeRect(-panel.w / 2, -panel.h / 2, panel.w, panel.h);
+    } else {
+      ctx.strokeRect(panel.x, panel.y, panel.w, panel.h);
     }
     ctx.restore();
   }
 
-  // 9. Lettering: Anton Title + Pacifico Subtitle
-  const titleBox = layoutData.titleBox || { x: W / 2, y: H * 0.78, anchor: 'center' };
-  const titleText = (state.title || 'NEON SHORE').toUpperCase();
-  const subText = state.subtitle || 'Vice City Nights';
-  const tagText = state.subcaption || 'DIRECTED BY MAKE.FUN // LEONIDA';
-
-  ctx.save();
-  ctx.textAlign = titleBox.anchor || 'center';
-
-  // Compute title font size
-  let titleFontSize = Math.round(86 * scale);
-  if (state.layout === 'nine_panel') {
-    titleFontSize = Math.round(52 * scale);
-  } else if (state.layout === 'story_strip') {
-    titleFontSize = Math.round(74 * scale);
+  roundRect(ctx, x, y, width, height, radius) {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
   }
-
-  // Background banner backing for readability if in grid layouts
-  if (state.layout === 'four_panel' || state.layout === 'story_strip' || state.layout === 'hero_three') {
-    const bannerW = state.layout === 'hero_three' ? W * 0.92 : W * 0.84;
-    const bannerH = 186 * scale;
-    const bannerX = (W - bannerW) / 2;
-    const bannerY = titleBox.y - 74 * scale;
-
-    ctx.fillStyle = 'rgba(8, 4, 18, 0.92)';
-    ctx.fillRect(bannerX, bannerY, bannerW, bannerH);
-
-    const bannerBorder = ctx.createLinearGradient(bannerX, 0, bannerX + bannerW, 0);
-    bannerBorder.addColorStop(0, '#ff2a6d');
-    bannerBorder.addColorStop(0.5, '#ffd700');
-    bannerBorder.addColorStop(1, '#00f5d4');
-    ctx.strokeStyle = bannerBorder;
-    ctx.lineWidth = 3.5 * scale;
-    ctx.strokeRect(bannerX, bannerY, bannerW, bannerH);
-  } else if (state.layout === 'full_bleed') {
-    const gradH = H * 0.42;
-    const grad = ctx.createLinearGradient(0, H - gradH, 0, H);
-    grad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-    grad.addColorStop(0.5, 'rgba(5, 2, 12, 0.7)');
-    grad.addColorStop(1, 'rgba(5, 2, 12, 0.95)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, H - gradH, W, gradH);
-  }
-
-  // Title: Anton font with sunset gradient fill and neon outer glow
-  ctx.font = `900 ${titleFontSize}px Anton, sans-serif`;
-  ctx.textBaseline = 'middle';
-
-  const titleY = state.layout === 'nine_panel' ? titleBox.y - 6 * scale : titleBox.y - 14 * scale;
-
-  // Multi-pass neon glow
-  ctx.shadowColor = '#ff007f';
-  ctx.shadowBlur = 24 * scale;
-  ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 0;
-
-  // Heavy dark stroke for crisp contrast against any background
-  ctx.strokeStyle = '#05020a';
-  ctx.lineWidth = Math.max(6, 12 * scale);
-  ctx.lineJoin = 'round';
-  ctx.strokeText(titleText, titleBox.x, titleY);
-
-  // Sunset gradient fill
-  const titleGrad = ctx.createLinearGradient(0, titleY - titleFontSize / 2, 0, titleY + titleFontSize / 2);
-  titleGrad.addColorStop(0, '#ffffff');
-  titleGrad.addColorStop(0.2, '#fff44f'); // Golden yellow
-  titleGrad.addColorStop(0.65, '#ff2a6d'); // Neon magenta
-  titleGrad.addColorStop(1, '#7a00ff'); // Deep electric purple
-  ctx.fillStyle = titleGrad;
-  ctx.fillText(titleText, titleBox.x, titleY);
-
-  // Subtitle: Pacifico cursive neon script angled across or underneath
-  if (subText) {
-    const subFontSize = Math.round(titleFontSize * 0.35);
-    ctx.font = `400 ${subFontSize}px Pacifico, cursive`;
-
-    const subY = state.layout === 'nine_panel' ? titleBox.y + 20 * scale : titleBox.y + 30 * scale;
-    const subX = titleBox.x;
-
-    // Outer neon glow pass
-    ctx.shadowColor = '#00f5d4'; // Electric neon cyan
-    ctx.shadowBlur = 16 * scale;
-    ctx.lineWidth = Math.max(3, 4.5 * scale);
-    ctx.strokeStyle = '#020d1a';
-    ctx.strokeText(subText, subX, subY);
-
-    // Inner bright neon fill
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(subText, subX, subY);
-  }
-
-  // Sub-tagline
-  if (tagText && state.layout !== 'nine_panel') {
-    const tagFontSize = Math.round(11 * scale);
-    ctx.font = `700 ${tagFontSize}px sans-serif`;
-    ctx.shadowColor = 'transparent';
-    ctx.fillStyle = '#ffcf70';
-    ctx.letterSpacing = `${3 * scale}px`;
-    const tagY = titleBox.y + 78 * scale;
-    ctx.fillText(tagText.toUpperCase(), titleBox.x, tagY);
-  }
-
-  ctx.restore();
 }

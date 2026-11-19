@@ -1,6 +1,30 @@
 [
-  { "name": "1-cover.jpg", "query": "?shot=cover&photo=pier&caption=SUNSET%20HEIST&sub=Vice%20City%20Nights&layout=four_panel&grade=sunset_gradient", "w": 1080, "h": 1080 },
-  { "name": "2-editor.jpg", "query": "?shot=editor&photo=boulevard&caption=BOULEVARD%20QUEEN&sub=Ocean%20Drive&layout=hero_three&grade=neon_night", "w": 1280, "h": 720 },
-  { "name": "3-cover-nine.jpg", "query": "?shot=cover&photo=boulevard&caption=NEON%20SYNDICATE&sub=Night%20Shift&layout=nine_panel&grade=teal_orange", "w": 1080, "h": 1080 },
-  { "name": "4-export.jpg", "query": "?shot=cover&photo=boulevard&caption=CRIME%20WAVE&sub=Leonida%20Underworld&layout=full_bleed&grade=halftone_bw", "w": 1080, "h": 1080 }
+  {
+    "file": "screenshots/1-cover.jpg",
+    "shot": "cover",
+    "name": "Cover Art Square",
+    "caption": "Sunset Heist",
+    "description": "Full-bleed cover art render (?shot=cover) featuring pier photo, 4-panel layout, sunset color grade, Anton headline, and Pacifico script."
+  },
+  {
+    "file": "screenshots/2-editor.jpg",
+    "shot": "editor",
+    "name": "Interactive Studio Editor",
+    "caption": "Sunset Heist",
+    "description": "Full desktop editor studio (?shot=editor) displaying live panel controls, sliders, typography inputs, and sample photo."
+  },
+  {
+    "file": "screenshots/3-cover-nine.jpg",
+    "shot": "cover-nine",
+    "name": "Nine-Panel Layout Poster",
+    "caption": "Sunset Heist",
+    "description": "Nine-panel grid composition (?shot=cover&layout=nine_grid) with centered neon title card and boulevard photo."
+  },
+  {
+    "file": "screenshots/4-export.jpg",
+    "shot": "export",
+    "name": "Exported Full-Bleed Artwork",
+    "caption": "Sunset Heist",
+    "description": "High-resolution production cover generated directly by the real canvas export path in full-bleed layout with B&W halftone grade."
+  }
 ]

@@ -3,137 +3,180 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Neon Coast Cover Studio — GTA 6 Style Poster Creator</title>
+  <title>Neon Coast Cover Studio</title>
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-  <!-- Studio Header -->
-  <header class="studio-header">
+  <header class="app-header">
     <div class="brand">
-      <div class="brand-icon">NC</div>
-      <div>
-        <h1 class="brand-title">NEON COAST</h1>
-      </div>
-      <span class="brand-tag">Cover Studio</span>
+      <div class="brand-logo">NEON COAST</div>
+      <div class="brand-badge">Cover Studio</div>
     </div>
-
     <div class="header-actions">
-      <button type="button" class="btn" id="undoBtn" title="Undo (Ctrl+Z)">↶ Undo</button>
-      <button type="button" class="btn" id="redoBtn" title="Redo (Ctrl+Y)">↷ Redo</button>
-      <button type="button" class="btn btn-primary" id="exportAllBtn">⚡ Export All 3 Sizes</button>
+      <button id="btn-undo" class="btn-icon" title="Undo (Ctrl+Z)" disabled>
+        <span>↶</span> Undo
+      </button>
+      <button id="btn-redo" class="btn-icon" title="Redo (Ctrl+Y)" disabled>
+        <span>↷</span> Redo
+      </button>
+      <button id="btn-sample-pier" class="btn-icon">Sample: Pier</button>
+      <button id="btn-sample-boulevard" class="btn-icon">Sample: Boulevard</button>
     </div>
   </header>
 
-  <!-- Studio Workspace -->
-  <div class="studio-workspace">
-    <!-- Controls Sidebar -->
-    <aside class="studio-sidebar">
-      <!-- Section: Photo Source -->
-      <div class="control-section">
+  <main class="app-container">
+    <div class="preview-stage">
+      <div class="canvas-viewport">
+        <canvas id="cover-canvas" width="1080" height="1080"></canvas>
+      </div>
+      <div class="viewport-hint">Drag canvas to pan active panel · Mouse wheel or slider to zoom</div>
+    </div>
+
+    <aside class="controls-sidebar">
+      <!-- Layout Section -->
+      <section class="control-section">
         <div class="section-title">
-          <span>Source Photos</span>
-          <span style="font-size: 10px; color: var(--text-muted);">100% Local</span>
+          <span>📐</span> Poster Layout
         </div>
-        <div class="form-group">
-          <label>Sample Imagery</label>
-          <div class="chip-grid">
-            <button type="button" class="btn" id="samplePier">🌴 Ocean Pier</button>
-            <button type="button" class="btn" id="sampleBoulevard">🏙️ Boulevard</button>
+        <div class="options-grid" id="layout-options">
+          <button class="btn-option active" data-layout="four_grid">4-Panel Grid</button>
+          <button class="btn-option" data-layout="hero_three">Hero & Three</button>
+          <button class="btn-option" data-layout="full_bleed">Full Bleed</button>
+          <button class="btn-option" data-layout="nine_grid">9-Panel Grid</button>
+          <button class="btn-option" data-layout="tilted_snapshot">Tilted Snapshot</button>
+          <button class="btn-option" data-layout="story_strip">Story Strip</button>
+        </div>
+      </section>
+
+      <!-- Color Grade Section -->
+      <section class="control-section">
+        <div class="section-title">
+          <span>🎨</span> Color Grade
+        </div>
+        <div class="options-grid" id="grade-options">
+          <button class="btn-option active" data-grade="sunset">Sunset Map</button>
+          <button class="btn-option" data-grade="neon_night">Neon Night</button>
+          <button class="btn-option" data-grade="golden_hour">Golden Hour</button>
+          <button class="btn-option" data-grade="teal_orange">Teal & Orange</button>
+          <button class="btn-option" data-grade="halftone">B&W Halftone</button>
+        </div>
+      </section>
+
+      <!-- Lettering & Captions Section -->
+      <section class="control-section">
+        <div class="section-title">
+          <span>✍️</span> Lettering & Titles
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="input-title">Title (Anton Headline)</label>
+          <input type="text" id="input-title" class="text-input" value="SUNSET HEIST" maxlength="32">
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="input-subtitle">Subtitle (Pacifico Neon Script)</label>
+          <input type="text" id="input-subtitle" class="text-input" value="Vice City Nights" maxlength="40">
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="input-badge">Badge Ribbon Text</label>
+          <input type="text" id="input-badge" class="text-input" value="VICE CITY NIGHTS" maxlength="30">
+        </div>
+      </section>
+
+      <!-- Panel Crop & Transform -->
+      <section class="control-section">
+        <div class="section-title">
+          <span>🔍</span> Panel Adjustments
+        </div>
+        <div class="field-group">
+          <label class="field-label">Active Panel: <span id="active-panel-num">1</span></label>
+          <div class="options-grid-3" id="panel-selector-group">
+            <!-- Dynamically populated or buttons 1..9 -->
           </div>
         </div>
-        <div class="form-group">
-          <label for="fileUpload">Upload Custom Photo</label>
-          <input type="file" id="fileUpload" accept="image/*">
+        <div class="field-group">
+          <label class="field-label" for="slider-zoom">
+            Zoom Scale <span id="label-zoom-val">100%</span>
+          </label>
+          <input type="range" id="slider-zoom" class="range-slider" min="50" max="300" value="100">
         </div>
-      </div>
+        <div class="field-group">
+          <label class="field-label" for="slider-pan-x">
+            Pan X <span id="label-pan-x-val">0</span>
+          </label>
+          <input type="range" id="slider-pan-x" class="range-slider" min="-500" max="500" value="0">
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="slider-pan-y">
+            Pan Y <span id="label-pan-y-val">0</span>
+          </label>
+          <input type="range" id="slider-pan-y" class="range-slider" min="-500" max="500" value="0">
+        </div>
+      </section>
 
-      <!-- Section: Layout Picker -->
-      <div class="control-section">
-        <div class="section-title">Cover Layout (6)</div>
-        <div class="chip-grid" id="layoutPicker">
-          <!-- Populated dynamically via JS -->
+      <!-- Extras & Effects -->
+      <section class="control-section">
+        <div class="section-title">
+          <span>⭐</span> Extras & Atmosphere
         </div>
-      </div>
-
-      <!-- Section: Color Grading -->
-      <div class="control-section">
-        <div class="section-title">Cinematic Grade (5)</div>
-        <div class="chip-grid" id="gradePicker">
-          <!-- Populated dynamically via JS -->
-        </div>
-      </div>
-
-      <!-- Section: Lettering & Captions -->
-      <div class="control-section">
-        <div class="section-title">Poster Lettering</div>
-        <div class="form-group">
-          <label for="titleInput">Main Title (Anton Display)</label>
-          <input type="text" id="titleInput" value="SUNSET HEIST" placeholder="NEON SHORE">
-        </div>
-        <div class="form-group">
-          <label for="subtitleInput">Script Subtitle (Pacifico Neon)</label>
-          <input type="text" id="subtitleInput" value="Vice City Nights" placeholder="Night Shift">
-        </div>
-        <div class="form-group">
-          <label for="subcaptionInput">Tagline / Mission Banner</label>
-          <input type="text" id="subcaptionInput" value="LEONIDA STATE // THE GETAWAY" placeholder="CHAPTER 01">
-        </div>
-      </div>
-
-      <!-- Section: Extras & Heat Level -->
-      <div class="control-section">
-        <div class="section-title">Post-Processing & Extras</div>
-        <div class="form-group">
-          <label for="starsSelect">Heat Meter (Wanted Stars)</label>
-          <select id="starsSelect">
-            <option value="5">★★★★★ 5-Star Heat</option>
-            <option value="4">★★★★☆ 4-Star Heat</option>
-            <option value="3">★★★☆☆ 3-Star Heat</option>
-            <option value="2">★★☆☆☆ 2-Star Heat</option>
-            <option value="1">★☆☆☆☆ 1-Star Heat</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="badgeTextInput">Badge Ribbon Label</label>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="text" id="badgeTextInput" value="VICE CITY NIGHTS" style="flex: 1;">
-            <label style="margin: 0; display: flex; align-items: center; gap: 4px; font-size: 11px;">
-              <input type="checkbox" id="showBadgeCheck" checked> Show
-            </label>
+        <div class="field-group">
+          <label class="field-label">Wanted Heat Level</label>
+          <div class="star-rating-row" id="heat-stars">
+            <button class="star-btn active" data-star="1">★</button>
+            <button class="star-btn active" data-star="2">★</button>
+            <button class="star-btn active" data-star="3">★</button>
+            <button class="star-btn active" data-star="4">★</button>
+            <button class="star-btn active" data-star="5">★</button>
           </div>
         </div>
-        <div class="form-group">
-          <label for="grainSlider">Film Grain Intensity</label>
-          <div class="slider-container">
-            <input type="range" id="grainSlider" min="0" max="1" step="0.05" value="0.35">
-          </div>
+        <div class="toggle-row">
+          <span class="toggle-label">Badge Ribbon</span>
+          <label class="switch">
+            <input type="checkbox" id="toggle-badge" checked>
+            <span class="slider-switch"></span>
+          </label>
         </div>
-        <div class="form-group">
-          <label for="vignetteSlider">Vignette Darkness</label>
-          <div class="slider-container">
-            <input type="range" id="vignetteSlider" min="0" max="1" step="0.05" value="0.45">
-          </div>
+        <div class="toggle-row">
+          <span class="toggle-label">Film Grain</span>
+          <label class="switch">
+            <input type="checkbox" id="toggle-grain" checked>
+            <span class="slider-switch"></span>
+          </label>
         </div>
-      </div>
+        <div class="toggle-row">
+          <span class="toggle-label">Vignette Falloff</span>
+          <label class="switch">
+            <input type="checkbox" id="toggle-vignette" checked>
+            <span class="slider-switch"></span>
+          </label>
+        </div>
+      </section>
 
-      <!-- Section: Export Actions -->
-      <div class="control-section export-panel">
-        <div class="section-title">Export PNG Presets</div>
-        <div class="export-grid">
-          <button type="button" class="btn" id="exportSquareBtn" title="1080x1080 PNG">Square</button>
-          <button type="button" class="btn" id="exportStoryBtn" title="1080x1350 PNG">Story</button>
-          <button type="button" class="btn" id="exportLandscapeBtn" title="1920x1080 PNG">Cinema</button>
+      <!-- Photo Import -->
+      <section class="control-section">
+        <div class="section-title">
+          <span>📷</span> Photo Source
         </div>
-      </div>
+        <div class="photo-actions">
+          <label class="file-upload-btn" for="input-file">
+            📁 Upload Local Photo
+            <input type="file" id="input-file" class="file-input-hidden" accept="image/*">
+          </label>
+        </div>
+      </section>
+
+      <!-- Export Section -->
+      <section class="control-section">
+        <div class="section-title">
+          <span>💾</span> Export Artwork
+        </div>
+        <div class="btn-export-group">
+          <button id="btn-export-1080-square" class="btn-export">1080×1080 (Square)</button>
+          <button id="btn-export-1080-story" class="btn-export">1080×1350 (Story)</button>
+          <button id="btn-export-1920-land" class="btn-export">1920×1080 (Landscape)</button>
+          <button id="btn-export-all" class="btn-export-all">Export All (3 Sizes)</button>
+        </div>
+      </section>
     </aside>
-
-    <!-- Canvas Preview Viewport -->
-    <main class="studio-main">
-      <div class="canvas-wrapper">
-        <canvas id="previewCanvas" width="1080" height="1080"></canvas>
-      </div>
-    </main>
-  </div>
+  </main>
 
   <script type="module" src="./src/app.js"></script>
 </body>

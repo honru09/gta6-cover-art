@@ -1,168 +1,161 @@
 /**
- * Color grading filters for Neon Coast Cover Studio.
- * Applies GTA/Vice City-style cinematic color grading to canvas imagery.
+ * Neon Coast Cover Studio - Color Grades
+ * High-performance 2D Canvas color grading with precomputed LUTs and comic halftone.
  */
 
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function createRampLut(stops) {
+  const lut = new Uint8Array(256 * 3);
+  for (let i = 0; i < 256; i++) {
+    const t = i / 255;
+    let segIdx = 0;
+    while (segIdx < stops.length - 2 && t > stops[segIdx + 1].pos) {
+      segIdx++;
+    }
+    const s0 = stops[segIdx];
+    const s1 = stops[segIdx + 1];
+    const localT = (t - s0.pos) / (s1.pos - s0.pos || 1);
+    const clampedT = Math.max(0, Math.min(1, localT));
+
+    lut[i * 3 + 0] = Math.round(lerp(s0.r, s1.r, clampedT));
+    lut[i * 3 + 1] = Math.round(lerp(s0.g, s1.g, clampedT));
+    lut[i * 3 + 2] = Math.round(lerp(s0.b, s1.b, clampedT));
+  }
+  return lut;
+}
+
+// 1. Sunset Gradient-Map (Vice City dusk / magenta to gold)
+const SUNSET_LUT = createRampLut([
+  { pos: 0.0, r: 35, g: 10, b: 58 },
+  { pos: 0.45, r: 235, g: 35, b: 115 },
+  { pos: 0.8, r: 255, g: 140, b: 40 },
+  { pos: 1.0, r: 255, g: 230, b: 100 }
+]);
+
+// 2. Neon Night (Navy, electric purple, neon cyan)
+const NEON_NIGHT_LUT = createRampLut([
+  { pos: 0.0, r: 12, g: 15, b: 42 },
+  { pos: 0.5, r: 175, g: 25, b: 195 },
+  { pos: 1.0, r: 15, g: 245, b: 255 }
+]);
+
+// 3. Golden Hour (Terracotta, rich amber, champagne gold)
+const GOLDEN_HOUR_LUT = createRampLut([
+  { pos: 0.0, r: 45, g: 22, b: 15 },
+  { pos: 0.5, r: 240, g: 125, b: 25 },
+  { pos: 1.0, r: 255, g: 245, b: 175 }
+]);
+
+// 4. Teal & Orange Duotone (Cinematic teal shadows, peachy-orange highlights)
+const TEAL_ORANGE_LUT = createRampLut([
+  { pos: 0.0, r: 8, g: 60, b: 78 },
+  { pos: 0.48, r: 145, g: 110, b: 90 },
+  { pos: 1.0, r: 255, g: 145, b: 35 }
+]);
+
 export const GRADES = {
-  sunset_gradient: {
-    id: 'sunset_gradient',
-    name: 'Sunset Gradient-Map',
-    description: 'Vice City dusk: deep purple shadows, hot magenta midtones, golden yellow highlights',
+  sunset: {
+    id: 'sunset',
+    name: 'Sunset Gradient',
+    apply(imageData) {
+      applyLut(imageData, SUNSET_LUT, 0.95);
+    }
   },
   neon_night: {
     id: 'neon_night',
     name: 'Neon Night',
-    description: 'Electric night: midnight indigo shadows with vivid cyan and hot pink neon highlights',
+    apply(imageData) {
+      applyLut(imageData, NEON_NIGHT_LUT, 0.95);
+    }
   },
   golden_hour: {
     id: 'golden_hour',
     name: 'Golden Hour',
-    description: 'Tropical warmth: rich amber saturation, golden sunbeam wash, and warm chocolate contrast',
+    apply(imageData) {
+      applyLut(imageData, GOLDEN_HOUR_LUT, 0.95);
+    }
   },
   teal_orange: {
     id: 'teal_orange',
     name: 'Teal & Orange',
-    description: 'Cinematic duotone: oceanic teal shadows contrasted with punchy warm sunset highlights',
+    apply(imageData) {
+      applyLut(imageData, TEAL_ORANGE_LUT, 0.95);
+    }
   },
-  halftone_bw: {
-    id: 'halftone_bw',
+  halftone: {
+    id: 'halftone',
     name: 'B&W Halftone',
-    description: 'Gritty crime noir: high-contrast monochrome with stylized print texture',
-  },
-};
-
-/**
- * Applies the selected grade directly to a 2D rendering context within a given rectangle.
- * @param {CanvasRenderingContext2D} ctx
- * @param {string} gradeId
- * @param {number} x
- * @param {number} y
- * @param {number} w
- * @param {number} h
- */
-export function applyGrade(ctx, gradeId, x, y, w, h) {
-  const rx = Math.max(0, Math.floor(x));
-  const ry = Math.max(0, Math.floor(y));
-  const rw = Math.min(ctx.canvas.width - rx, Math.floor(w));
-  const rh = Math.min(ctx.canvas.height - ry, Math.floor(h));
-
-  if (rw <= 0 || rh <= 0) return;
-
-  const imgData = ctx.getImageData(rx, ry, rw, rh);
-  const data = imgData.data;
-  const len = data.length;
-
-  switch (gradeId) {
-    case 'sunset_gradient': {
-      // Gradient map: Shadow (30, 8, 48) -> Mid (225, 42, 115) -> Highlight (255, 222, 60)
-      for (let i = 0; i < len; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-
-        if (lum < 0.5) {
-          const t = lum / 0.5;
-          data[i] = Math.round(30 + (225 - 30) * t);
-          data[i + 1] = Math.round(8 + (42 - 8) * t);
-          data[i + 2] = Math.round(48 + (115 - 48) * t);
-        } else {
-          const t = (lum - 0.5) / 0.5;
-          data[i] = Math.min(255, Math.round(225 + (255 - 225) * t));
-          data[i + 1] = Math.min(255, Math.round(42 + (222 - 42) * t));
-          data[i + 2] = Math.min(255, Math.round(115 + (60 - 115) * t));
-        }
-      }
-      break;
-    }
-
-    case 'neon_night': {
-      // Midnight shadows (10, 15, 45) -> Electric magenta mid (160, 20, 140) -> Cyan highlight (0, 245, 212)
-      for (let i = 0; i < len; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-
-        if (lum < 0.45) {
-          const t = lum / 0.45;
-          data[i] = Math.round(10 + (160 - 10) * t);
-          data[i + 1] = Math.round(15 + (20 - 15) * t);
-          data[i + 2] = Math.round(45 + (140 - 45) * t);
-        } else {
-          const t = (lum - 0.45) / 0.55;
-          data[i] = Math.round(160 + (0 - 160) * t);
-          data[i + 1] = Math.min(255, Math.round(20 + (245 - 20) * t));
-          data[i + 2] = Math.min(255, Math.round(140 + (212 - 140) * t));
-        }
-      }
-      break;
-    }
-
-    case 'golden_hour': {
-      // Warm golden sun wash: boost reds and warm yellow, deep warm shadows
-      for (let i = 0; i < len; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-
-        data[i] = Math.min(255, Math.round(r * 1.25 + 30 * lum));
-        data[i + 1] = Math.min(255, Math.round(g * 1.05 + 15 * lum));
-        data[i + 2] = Math.max(0, Math.round(b * 0.75 - 10 * (1 - lum)));
-      }
-      break;
-    }
-
-    case 'teal_orange': {
-      // Shadows -> Teal (0, 95, 115) | Highlights -> Orange (238, 155, 0)
-      for (let i = 0; i < len; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-
-        if (lum < 0.5) {
-          const t = lum / 0.5;
-          data[i] = Math.round(0 + (10 - 0) * t);
-          data[i + 1] = Math.round(40 + (110 - 40) * t);
-          data[i + 2] = Math.round(60 + (140 - 60) * t);
-        } else {
-          const t = (lum - 0.5) / 0.5;
-          data[i] = Math.min(255, Math.round(150 + (255 - 150) * t));
-          data[i + 1] = Math.min(255, Math.round(90 + (170 - 90) * t));
-          data[i + 2] = Math.round(60 + (20 - 60) * t);
-        }
-      }
-      break;
-    }
-
-    case 'halftone_bw': {
-      // High contrast B&W with subtle dot halftone effect
-      for (let yIdx = 0; yIdx < rh; yIdx++) {
-        for (let xIdx = 0; xIdx < rw; xIdx++) {
-          const idx = (yIdx * rw + xIdx) * 4;
-          const r = data[idx];
-          const g = data[idx + 1];
-          const b = data[idx + 2];
-          let lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-
-          // High contrast curve
-          lum = lum < 0.5 ? Math.pow(lum * 2, 1.4) / 2 : 1 - Math.pow((1 - lum) * 2, 1.4) / 2;
-
-          // Stylized halftone pattern (4x4 dot matrix)
-          const dot = ((xIdx % 4) - 1.5) ** 2 + ((yIdx % 4) - 1.5) ** 2;
-          const threshold = dot / 4.5;
-          const finalVal = lum > threshold ? 245 : 15;
-
-          data[idx] = finalVal;
-          data[idx + 1] = finalVal;
-          data[idx + 2] = finalVal;
-        }
-      }
-      break;
+    apply(imageData) {
+      applyHalftone(imageData);
     }
   }
+};
 
-  ctx.putImageData(imgData, rx, ry);
+function applyLut(imageData, lut, blend = 1.0) {
+  const data = imageData.data;
+  const len = data.length;
+  const invBlend = 1 - blend;
+
+  for (let i = 0; i < len; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+
+    // Perceptual luminance
+    const lum = (r * 77 + g * 150 + b * 29) >> 8;
+    const lutIdx = lum * 3;
+
+    if (blend >= 0.99) {
+      data[i] = lut[lutIdx];
+      data[i + 1] = lut[lutIdx + 1];
+      data[i + 2] = lut[lutIdx + 2];
+    } else {
+      data[i] = Math.round(r * invBlend + lut[lutIdx] * blend);
+      data[i + 1] = Math.round(g * invBlend + lut[lutIdx + 1] * blend);
+      data[i + 2] = Math.round(b * invBlend + lut[lutIdx + 2] * blend);
+    }
+  }
+}
+
+function applyHalftone(imageData) {
+  const { width, height, data } = imageData;
+  const cellSize = 6;
+  const halfCell = cellSize / 2;
+  const maxRadius = halfCell * 1.35;
+
+  // First pass: compute luminance and apply high-contrast comic curve with screen dot
+  for (let y = 0; y < height; y++) {
+    const rowOffset = y * width * 4;
+    const cy = (y % cellSize) - halfCell + 0.5;
+
+    for (let x = 0; x < width; x++) {
+      const idx = rowOffset + x * 4;
+      const r = data[idx];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
+
+      // Luminance
+      let lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      // High contrast comic curve
+      lum = Math.pow(lum, 1.3);
+
+      const cx = (x % cellSize) - halfCell + 0.5;
+      const dist = Math.sqrt(cx * cx + cy * cy);
+      const dotThreshold = 1 - (dist / maxRadius);
+
+      // Ink black vs cream white
+      if (lum > dotThreshold) {
+        data[idx] = 246;
+        data[idx + 1] = 244;
+        data[idx + 2] = 240;
+      } else {
+        data[idx] = 16;
+        data[idx + 1] = 14;
+        data[idx + 2] = 24;
+      }
+    }
+  }
 }

@@ -1,202 +1,174 @@
 /**
- * Layout geometry definitions for Neon Coast Cover Studio.
- * Computes panel bounds and title coordinates for 6 distinct cover styles.
+ * Neon Coast Cover Studio - Layouts
+ * 6 switchable cover art poster layouts with responsive geometry and clipping.
  */
 
 export const LAYOUTS = {
-  four_panel: {
-    id: 'four_panel',
+  four_grid: {
+    id: 'four_grid',
     name: '4-Panel Grid',
-    description: 'Classic Vice City comic-panel poster with heavy contrast frames',
+    panelCount: 4,
+    titleStyle: 'bottom_banner',
+    getPanels(width, height) {
+      const margin = 14;
+      const gap = 12;
+      const colW = (width - margin * 2 - gap) / 2;
+      const rowH = (height - margin * 2 - gap) / 2;
+
+      return [
+        { id: 0, x: margin, y: margin, w: colW, h: rowH },
+        { id: 1, x: margin + colW + gap, y: margin, w: colW, h: rowH },
+        { id: 2, x: margin, y: margin + rowH + gap, w: colW, h: rowH },
+        { id: 3, x: margin + colW + gap, y: margin + rowH + gap, w: colW, h: rowH }
+      ];
+    }
   },
+
   hero_three: {
     id: 'hero_three',
     name: 'Hero & Three',
-    description: 'Major cinematic portrait panel paired with three action snapshots',
+    panelCount: 4,
+    titleStyle: 'bottom_banner',
+    getPanels(width, height) {
+      const margin = 14;
+      const gap = 12;
+      const heroW = (width - margin * 2 - gap) * 0.62;
+      const sideW = (width - margin * 2 - gap) * 0.38;
+      const sideH = (height - margin * 2 - gap * 2) / 3;
+      const totalH = height - margin * 2;
+
+      return [
+        { id: 0, x: margin, y: margin, w: heroW, h: totalH }, // Hero left
+        { id: 1, x: margin + heroW + gap, y: margin, w: sideW, h: sideH },
+        { id: 2, x: margin + heroW + gap, y: margin + sideH + gap, w: sideW, h: sideH },
+        { id: 3, x: margin + heroW + gap, y: margin + (sideH + gap) * 2, w: sideW, h: sideH }
+      ];
+    }
   },
+
   full_bleed: {
     id: 'full_bleed',
     name: 'Full Bleed',
-    description: 'Immersive full-screen visual with atmospheric gradient letterboxing',
-  },
-  nine_panel: {
-    id: 'nine_panel',
-    name: 'Nine-Panel Grid',
-    description: 'Intense GTA montage mosaic featuring a centered neon emblem block',
-  },
-  tilted_snapshot: {
-    id: 'tilted_snapshot',
-    name: 'Tilted Snapshot',
-    description: 'Overlapping dynamic angled crime files with drop-shadow depth',
-  },
-  story_strip: {
-    id: 'story_strip',
-    name: 'Story Strip',
-    description: 'Cinematic widescreen horizontal trilogy with sleek narrative dividers',
-  },
-};
-
-/**
- * Calculates panel geometries and title placement for a given layout and canvas dimensions.
- * @param {string} layoutId
- * @param {number} width
- * @param {number} height
- * @returns {{ panels: Array<object>, titleBox: object }}
- */
-export function computeLayout(layoutId, width, height) {
-  const border = Math.max(6, Math.round(width * 0.008));
-  const halfBorder = border / 2;
-
-  switch (layoutId) {
-    case 'four_panel': {
-      const midX = width / 2;
-      const midY = height / 2;
-      return {
-        panels: [
-          { id: 'p0', x: border, y: border, w: midX - border * 1.5, h: midY - border * 1.5 },
-          { id: 'p1', x: midX + halfBorder, y: border, w: midX - border * 1.5, h: midY - border * 1.5 },
-          { id: 'p2', x: border, y: midY + halfBorder, w: midX - border * 1.5, h: midY - border * 1.5 },
-          { id: 'p3', x: midX + halfBorder, y: midY + halfBorder, w: midX - border * 1.5, h: midY - border * 1.5 },
-        ],
-        titleBox: {
-          x: width / 2,
-          y: height * 0.52,
-          anchor: 'center',
-          hasCenterBadge: true,
-        },
-      };
+    panelCount: 1,
+    titleStyle: 'lower_third',
+    getPanels(width, height) {
+      return [
+        { id: 0, x: 0, y: 0, w: width, h: height }
+      ];
     }
+  },
 
-    case 'hero_three': {
-      const heroW = Math.round(width * 0.58);
-      const sideW = width - heroW - border * 3;
-      const sideH = Math.round((height - border * 4) / 3);
+  nine_grid: {
+    id: 'nine_grid',
+    name: '9-Panel Grid',
+    panelCount: 8,
+    titleStyle: 'center_card',
+    getPanels(width, height) {
+      const margin = 12;
+      const gap = 10;
+      const colW = (width - margin * 2 - gap * 2) / 3;
+      const rowH = (height - margin * 2 - gap * 2) / 3;
 
-      return {
-        panels: [
-          // Hero panel
-          { id: 'hero', x: border, y: border, w: heroW, h: height - border * 2 },
-          // 3 side panels
-          { id: 'side1', x: border * 2 + heroW, y: border, w: sideW, h: sideH },
-          { id: 'side2', x: border * 2 + heroW, y: border * 2 + sideH, w: sideW, h: sideH },
-          { id: 'side3', x: border * 2 + heroW, y: border * 3 + sideH * 2, w: sideW, h: height - (border * 3 + sideH * 2) - border },
-        ],
-        titleBox: {
-          x: width / 2,
-          y: height * 0.82,
-          anchor: 'center',
-          hasCenterBadge: false,
-        },
-      };
-    }
-
-    case 'full_bleed': {
-      return {
-        panels: [
-          { id: 'full', x: 0, y: 0, w: width, h: height },
-        ],
-        titleBox: {
-          x: width / 2,
-          y: height * 0.78,
-          anchor: 'center',
-          hasCenterBadge: false,
-        },
-      };
-    }
-
-    case 'nine_panel': {
-      const cellW = (width - border * 4) / 3;
-      const cellH = (height - border * 4) / 3;
       const panels = [];
+      let photoPanelId = 0;
 
       for (let r = 0; r < 3; r++) {
         for (let c = 0; c < 3; c++) {
-          // Center cell (r=1, c=1) is reserved for emblem/title
-          if (r === 1 && c === 1) continue;
+          const x = margin + c * (colW + gap);
+          const y = margin + r * (rowH + gap);
+
+          if (r === 1 && c === 1) {
+            // Center cell is the dedicated Title Card
+            continue;
+          }
+
           panels.push({
-            id: `tile_${r}_${c}`,
-            x: border + c * (cellW + border),
-            y: border + r * (cellH + border),
-            w: cellW,
-            h: cellH,
+            id: photoPanelId++,
+            x,
+            y,
+            w: colW,
+            h: rowH
           });
         }
       }
 
+      return panels;
+    },
+    getCenterCard(width, height) {
+      const margin = 12;
+      const gap = 10;
+      const colW = (width - margin * 2 - gap * 2) / 3;
+      const rowH = (height - margin * 2 - gap * 2) / 3;
       return {
-        panels,
-        centerEmblem: {
-          x: border + cellW + border,
-          y: border + cellH + border,
-          w: cellW,
-          h: cellH,
-        },
-        titleBox: {
-          x: width / 2,
-          y: height / 2 + cellH * 0.08,
-          anchor: 'center',
-          hasCenterBadge: true,
-        },
+        x: margin + (colW + gap),
+        y: margin + (rowH + gap),
+        w: colW,
+        h: rowH
       };
     }
+  },
 
-    case 'tilted_snapshot': {
+  tilted_snapshot: {
+    id: 'tilted_snapshot',
+    name: 'Tilted Snapshot',
+    panelCount: 3,
+    titleStyle: 'bottom_banner',
+    getPanels(width, height) {
       const cardW = width * 0.52;
-      const cardH = height * 0.52;
-      return {
-        panels: [
-          {
-            id: 'tilt_left',
-            x: width * 0.28,
-            y: height * 0.45,
-            w: cardW,
-            h: cardH,
-            angle: -0.09, // ~ -5 deg
-          },
-          {
-            id: 'tilt_right',
-            x: width * 0.72,
-            y: height * 0.48,
-            w: cardW,
-            h: cardH,
-            angle: 0.08, // ~ +4.5 deg
-          },
-          {
-            id: 'tilt_hero',
-            x: width * 0.5,
-            y: height * 0.65,
-            w: cardW * 1.04,
-            h: cardH * 1.04,
-            angle: -0.02,
-          },
-        ],
-        titleBox: {
-          x: width / 2,
-          y: height * 0.15,
-          anchor: 'center',
-          hasCenterBadge: false,
-        },
-      };
-    }
+      const cardH = height * 0.48;
 
-    case 'story_strip': {
-      const stripH = (height - border * 4) / 3;
-      return {
-        panels: [
-          { id: 'strip_top', x: border, y: border, w: width - border * 2, h: stripH },
-          { id: 'strip_mid', x: border, y: border * 2 + stripH, w: width - border * 2, h: stripH },
-          { id: 'strip_bot', x: border, y: border * 3 + stripH * 2, w: width - border * 2, h: stripH },
-        ],
-        titleBox: {
-          x: width / 2,
-          y: border * 2 + stripH * 1.5,
-          anchor: 'center',
-          hasCenterBadge: false,
+      return [
+        // Snapshot 0 - top-left, rotated counter-clockwise
+        {
+          id: 0,
+          cx: width * 0.32,
+          cy: height * 0.32,
+          w: cardW,
+          h: cardH,
+          rotation: -0.10,
+          isTilted: true
         },
-      };
+        // Snapshot 1 - top-right, rotated clockwise
+        {
+          id: 1,
+          cx: width * 0.70,
+          cy: height * 0.38,
+          w: cardW * 0.94,
+          h: cardH * 0.94,
+          rotation: 0.08,
+          isTilted: true
+        },
+        // Snapshot 2 - center/bottom, slight tilt
+        {
+          id: 2,
+          cx: width * 0.48,
+          cy: height * 0.58,
+          w: cardW * 1.05,
+          h: cardH * 1.05,
+          rotation: -0.03,
+          isTilted: true
+        }
+      ];
     }
+  },
 
-    default:
-      return computeLayout('four_panel', width, height);
+  story_strip: {
+    id: 'story_strip',
+    name: 'Story Strip',
+    panelCount: 3,
+    titleStyle: 'bottom_banner',
+    getPanels(width, height) {
+      const marginX = width * 0.06;
+      const stripW = width - marginX * 2;
+      const stripH = height * 0.22;
+      const gapY = height * 0.035;
+      const startY = height * 0.08;
+
+      return [
+        { id: 0, x: marginX, y: startY, w: stripW, h: stripH },
+        { id: 1, x: marginX, y: startY + stripH + gapY, w: stripW, h: stripH },
+        { id: 2, x: marginX, y: startY + (stripH + gapY) * 2, w: stripW, h: stripH }
+      ];
+    }
   }
-}
+};
