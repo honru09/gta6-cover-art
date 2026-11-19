@@ -7,6 +7,35 @@
 import { LAYOUTS } from './layouts.js';
 import { GRADES } from './grades.js';
 
+let fontLoadingPromise = null;
+
+export async function loadEmbeddedFonts() {
+  if (fontLoadingPromise) {
+    return fontLoadingPromise;
+  }
+  fontLoadingPromise = (async () => {
+    try {
+      const res = await fetch('./fonts/fonts.json');
+      const data = await res.json();
+
+      const antonFace = new FontFace('Anton', 'url(data:font/woff2;base64,' + data.Anton + ')');
+      const pacificoFace = new FontFace('Pacifico', 'url(data:font/woff2;base64,' + data.Pacifico + ')');
+
+      document.fonts.add(antonFace);
+      document.fonts.add(pacificoFace);
+
+      await Promise.all([antonFace.load(), pacificoFace.load()]);
+
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
+    } catch (err) {
+      console.error('Failed to load embedded fonts:', err);
+    }
+  })();
+  return fontLoadingPromise;
+}
+
 export class CoverRenderer {
   constructor(canvas) {
     this.canvas = canvas;
@@ -15,9 +44,7 @@ export class CoverRenderer {
   }
 
   async initFonts() {
-    if (document.fonts && document.fonts.ready) {
-      await document.fonts.ready;
-    }
+    await loadEmbeddedFonts();
     this.fontsLoaded = true;
   }
 
