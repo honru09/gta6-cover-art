@@ -3,6 +3,7 @@
 - **Competition**: `gta6-cover-art-01`
 - **Repository URL**: https://github.com/honru09/gta6-cover-art
 - **Recording ID**: `01a1f43e-2bdf-754e-afe3-55e70cca4a9b`
+- **Final Commit SHA**: `2bb029fdc3e82bcbbaee2b1997d9055df7117faa` (rebuilt code; HEAD includes REPORT.md)
 - **Wallet Address**: `3ENhAT5yU2xV2KBgw1ecJQDrM88KuuuqJzRE1TUjJQW2`
 - **Keypair File**: `~/.config/makefun/solana-keypair.json`
 
