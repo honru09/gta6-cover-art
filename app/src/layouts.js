@@ -83,7 +83,7 @@ export function computeLayout(layoutId, width, height) {
         ],
         titleBox: {
           x: width / 2,
-          y: height * 0.84,
+          y: height * 0.82,
           anchor: 'center',
           hasCenterBadge: false,
         },

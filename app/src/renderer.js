@@ -121,6 +121,8 @@ export function renderCover(canvas, state) {
           if (idx === 0) def = { panX: 0, panY: 90, zoom: 1.25 };
           else if (idx === 1) def = { panX: 0, panY: 0, zoom: 1.15 };
           else def = { panX: 0, panY: -90, zoom: 1.25 };
+        } else if (state.layout === 'full_bleed') {
+          def = { panX: 0, panY: 140, zoom: 1.0 };
         }
 
         const userOffset = state.panelOffsets && state.panelOffsets[p.id];
@@ -306,19 +308,19 @@ export function renderCover(canvas, state) {
   ctx.textAlign = titleBox.anchor || 'center';
 
   // Compute title font size
-  let titleFontSize = Math.round(92 * scale);
+  let titleFontSize = Math.round(86 * scale);
   if (state.layout === 'nine_panel') {
-    titleFontSize = Math.round(54 * scale);
+    titleFontSize = Math.round(52 * scale);
   } else if (state.layout === 'story_strip') {
-    titleFontSize = Math.round(76 * scale);
+    titleFontSize = Math.round(74 * scale);
   }
 
   // Background banner backing for readability if in grid layouts
   if (state.layout === 'four_panel' || state.layout === 'story_strip' || state.layout === 'hero_three') {
     const bannerW = state.layout === 'hero_three' ? W * 0.92 : W * 0.84;
-    const bannerH = 170 * scale;
+    const bannerH = 186 * scale;
     const bannerX = (W - bannerW) / 2;
-    const bannerY = titleBox.y - bannerH * 0.46;
+    const bannerY = titleBox.y - 74 * scale;
 
     ctx.fillStyle = 'rgba(8, 4, 18, 0.92)';
     ctx.fillRect(bannerX, bannerY, bannerW, bannerH);
@@ -344,6 +346,8 @@ export function renderCover(canvas, state) {
   ctx.font = `900 ${titleFontSize}px Anton, sans-serif`;
   ctx.textBaseline = 'middle';
 
+  const titleY = state.layout === 'nine_panel' ? titleBox.y - 6 * scale : titleBox.y - 14 * scale;
+
   // Multi-pass neon glow
   ctx.shadowColor = '#ff007f';
   ctx.shadowBlur = 24 * scale;
@@ -354,29 +358,29 @@ export function renderCover(canvas, state) {
   ctx.strokeStyle = '#05020a';
   ctx.lineWidth = Math.max(6, 12 * scale);
   ctx.lineJoin = 'round';
-  ctx.strokeText(titleText, titleBox.x, titleBox.y);
+  ctx.strokeText(titleText, titleBox.x, titleY);
 
   // Sunset gradient fill
-  const titleGrad = ctx.createLinearGradient(0, titleBox.y - titleFontSize / 2, 0, titleBox.y + titleFontSize / 2);
+  const titleGrad = ctx.createLinearGradient(0, titleY - titleFontSize / 2, 0, titleY + titleFontSize / 2);
   titleGrad.addColorStop(0, '#ffffff');
   titleGrad.addColorStop(0.2, '#fff44f'); // Golden yellow
   titleGrad.addColorStop(0.65, '#ff2a6d'); // Neon magenta
   titleGrad.addColorStop(1, '#7a00ff'); // Deep electric purple
   ctx.fillStyle = titleGrad;
-  ctx.fillText(titleText, titleBox.x, titleBox.y);
+  ctx.fillText(titleText, titleBox.x, titleY);
 
   // Subtitle: Pacifico cursive neon script angled across or underneath
   if (subText) {
-    const subFontSize = Math.round(titleFontSize * 0.44);
+    const subFontSize = Math.round(titleFontSize * 0.35);
     ctx.font = `400 ${subFontSize}px Pacifico, cursive`;
 
-    const subY = titleBox.y + titleFontSize * 0.52;
+    const subY = state.layout === 'nine_panel' ? titleBox.y + 20 * scale : titleBox.y + 30 * scale;
     const subX = titleBox.x;
 
     // Outer neon glow pass
     ctx.shadowColor = '#00f5d4'; // Electric neon cyan
-    ctx.shadowBlur = 18 * scale;
-    ctx.lineWidth = Math.max(3, 5 * scale);
+    ctx.shadowBlur = 16 * scale;
+    ctx.lineWidth = Math.max(3, 4.5 * scale);
     ctx.strokeStyle = '#020d1a';
     ctx.strokeText(subText, subX, subY);
 
@@ -387,14 +391,12 @@ export function renderCover(canvas, state) {
 
   // Sub-tagline
   if (tagText && state.layout !== 'nine_panel') {
-    const tagFontSize = Math.round(13 * scale);
+    const tagFontSize = Math.round(11 * scale);
     ctx.font = `700 ${tagFontSize}px sans-serif`;
     ctx.shadowColor = 'transparent';
     ctx.fillStyle = '#ffcf70';
     ctx.letterSpacing = `${3 * scale}px`;
-    const tagY = state.layout === 'four_panel' || state.layout === 'story_strip'
-      ? titleBox.y + titleFontSize * 0.72
-      : titleBox.y + titleFontSize * 0.92;
+    const tagY = titleBox.y + 78 * scale;
     ctx.fillText(tagText.toUpperCase(), titleBox.x, tagY);
   }
 
