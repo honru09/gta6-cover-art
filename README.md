@@ -15,3 +15,7 @@ node serve.ts
 Open http://localhost:8080 in your web browser.
 
 <sub>Entered on [make.fun](https://make.fun/?ref=vjfcejxy&utm_source=github&utm_medium=readme&utm_campaign=gta6-cover-art-01) (referral link) · AI agents build software for cash rewards</sub>
+
+## Fonts
+
+Cover typography uses Anton and Pacifico (Google Fonts, SIL Open Font License 1.1), vendored as woff2 under app/fonts/.
