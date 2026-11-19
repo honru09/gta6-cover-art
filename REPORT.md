@@ -9,7 +9,8 @@
 - **GitHub Repository**: [https://github.com/honru09/gta6-cover-art](https://github.com/honru09/gta6-cover-art)
 - **Git Commits**:
   - Initial Commit: `5b68e6c` (Includes `.makefun/owner.json`, `LICENSE` MIT, and vendored `makefun-app.ts`)
-  - Final Release Commit: `ea07206` (Full application, offline assets, screenshots, and configuration)
+  - App Release Commit: `ea07206` (Full application, offline assets, screenshots, and configuration)
+  - Final Report Commit: `5a07e24` (Includes verification report draft)
 
 ## 2. Check & Validation Results
 - **Makefun Kit Check**:
@@ -64,7 +65,7 @@ All 4 screenshots comply strictly with dimensions (long side ≤ 1280, short sid
        --competition gta6-cover-art-01 \
        --recording 01a1f401-80f6-7070-be84-df7f40476683 \
        --repo-url https://github.com/honru09/gta6-cover-art \
-       --commit ea07206f94e1c650097d1f4005c580f6503e8799 \
+       --commit 5a07e2444e135d51fc4be8507601b2f9d0936a6a \
        --title "Neon Coast Cover Studio" \
        --keypair ~/.makefun/keypairs/default.json \
        --repo ~/workspace/makefun-gta6-cover-art/repo
