@@ -10,7 +10,7 @@
 - **Git Commits**:
   - Initial Commit: `5b68e6c` (Includes `.makefun/owner.json`, `LICENSE` MIT, and vendored `makefun-app.ts`)
   - App Release Commit: `ea07206` (Full application, offline assets, screenshots, and configuration)
-  - Final Report Commit: `5a07e24` (Includes verification report draft)
+  - Final Report Commit: `3ef6e36` (Includes badge link, title-block spacing, full-bleed framing, and updated screenshots)
 
 ## 2. Check & Validation Results
 - **Makefun Kit Check**:
@@ -36,18 +36,18 @@
 ## 3. Evidence Screenshots (`screenshots/`)
 All 4 screenshots comply strictly with dimensions (long side ≤ 1280, short side ≥ 480) and file size (≤ 256 KiB) limits:
 
-1. **`1-cover.jpg`** (1080×1080, 206.1 KiB):
+1. **`1-cover.jpg`** (1080×1080, 201.3 KiB):
    - Scene: `?shot=cover&photo=pier&caption=SUNSET%20HEIST&sub=Vice%20City%20Nights&layout=four_panel&grade=sunset_gradient`
-   - Shows: The exported 4-panel poster cover art with Vice City sunset gradient-map grade, Anton title fill & glow, Pacifico neon script, wanted stars, and badge ribbon.
-2. **`2-editor.jpg`** (1280×720, 127.3 KiB):
+   - Shows: The exported 4-panel poster cover art with Vice City sunset gradient-map grade, Anton title fill & glow, Pacifico neon script, wanted stars, badge ribbon, and ample vertical gap with no overlap between subtitle and small-caps tag.
+2. **`2-editor.jpg`** (1280×720, 124.2 KiB):
    - Scene: `?shot=editor&photo=boulevard&caption=BOULEVARD%20QUEEN&sub=Ocean%20Drive&layout=hero_three&grade=neon_night`
-   - Shows: The full desktop studio editor with Boulevard photo loaded, layout chips (Hero & Three active), grade chips (Neon Night active), lettering inputs, and interactive live canvas preview.
+   - Shows: The full desktop studio editor with Boulevard photo loaded, layout chips (Hero & Three active), grade chips (Neon Night active), lettering inputs, and interactive live canvas preview with legible lettering and zero text collision.
 3. **`3-cover-nine.jpg`** (1080×1080, 210.2 KiB):
    - Scene: `?shot=cover&photo=boulevard&caption=NEON%20SYNDICATE&sub=Night%20Shift&layout=nine_panel&grade=teal_orange`
    - Shows: 9-panel GTA collage mosaic with cinematic teal & orange grade, 8 dynamic image tiles, and centered neon emblem block.
-4. **`4-export.jpg`** (1080×1080, 219.1 KiB):
+4. **`4-export.jpg`** (1080×1080, 241.6 KiB):
    - Scene: `?shot=cover&photo=boulevard&caption=CRIME%20WAVE&sub=Leonida%20Underworld&layout=full_bleed&grade=halftone_bw`
-   - Shows: Full-bleed poster featuring gritty crime noir B&W halftone texture with glowing Anton lettering.
+   - Shows: Full-bleed poster featuring gritty crime noir B&W halftone texture, loosened framing with subject's face fully in frame, and glowing Anton lettering with zero overlap.
 
 ## 4. Submission Handoff Notes for Parent Agent
 - **Live Recording Status**:
@@ -65,8 +65,8 @@ All 4 screenshots comply strictly with dimensions (long side ≤ 1280, short sid
        --competition gta6-cover-art-01 \
        --recording 01a1f401-80f6-7070-be84-df7f40476683 \
        --repo-url https://github.com/honru09/gta6-cover-art \
-       --commit 5a07e2444e135d51fc4be8507601b2f9d0936a6a \
+       --commit 3ef6e36529757b2deb89fff23425436eac1d027a \
        --title "Neon Coast Cover Studio" \
-       --keypair ~/.makefun/keypairs/default.json \
+       --keypair ~/.config/makefun/solana-keypair.json \
        --repo ~/workspace/makefun-gta6-cover-art/repo
      ```
