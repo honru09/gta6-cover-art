@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neon Coast Cover Studio — GTA 6 Style Poster Creator</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <!-- Studio Header -->
+  <header class="studio-header">
+    <div class="brand">
+      <div class="brand-icon">NC</div>
+      <div>
+        <h1 class="brand-title">NEON COAST</h1>
+      </div>
+      <span class="brand-tag">Cover Studio</span>
+    </div>
+
+    <div class="header-actions">
+      <button type="button" class="btn" id="undoBtn" title="Undo (Ctrl+Z)">↶ Undo</button>
+      <button type="button" class="btn" id="redoBtn" title="Redo (Ctrl+Y)">↷ Redo</button>
+      <button type="button" class="btn btn-primary" id="exportAllBtn">⚡ Export All 3 Sizes</button>
+    </div>
+  </header>
+
+  <!-- Studio Workspace -->
+  <div class="studio-workspace">
+    <!-- Controls Sidebar -->
+    <aside class="studio-sidebar">
+      <!-- Section: Photo Source -->
+      <div class="control-section">
+        <div class="section-title">
+          <span>Source Photos</span>
+          <span style="font-size: 10px; color: var(--text-muted);">100% Local</span>
+        </div>
+        <div class="form-group">
+          <label>Sample Imagery</label>
+          <div class="chip-grid">
+            <button type="button" class="btn" id="samplePier">🌴 Ocean Pier</button>
+            <button type="button" class="btn" id="sampleBoulevard">🏙️ Boulevard</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="fileUpload">Upload Custom Photo</label>
+          <input type="file" id="fileUpload" accept="image/*">
+        </div>
+      </div>
+
+      <!-- Section: Layout Picker -->
+      <div class="control-section">
+        <div class="section-title">Cover Layout (6)</div>
+        <div class="chip-grid" id="layoutPicker">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </div>
+
+      <!-- Section: Color Grading -->
+      <div class="control-section">
+        <div class="section-title">Cinematic Grade (5)</div>
+        <div class="chip-grid" id="gradePicker">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </div>
+
+      <!-- Section: Lettering & Captions -->
+      <div class="control-section">
+        <div class="section-title">Poster Lettering</div>
+        <div class="form-group">
+          <label for="titleInput">Main Title (Anton Display)</label>
+          <input type="text" id="titleInput" value="SUNSET HEIST" placeholder="NEON SHORE">
+        </div>
+        <div class="form-group">
+          <label for="subtitleInput">Script Subtitle (Pacifico Neon)</label>
+          <input type="text" id="subtitleInput" value="Vice City Nights" placeholder="Night Shift">
+        </div>
+        <div class="form-group">
+          <label for="subcaptionInput">Tagline / Mission Banner</label>
+          <input type="text" id="subcaptionInput" value="LEONIDA STATE // THE GETAWAY" placeholder="CHAPTER 01">
+        </div>
+      </div>
+
+      <!-- Section: Extras & Heat Level -->
+      <div class="control-section">
+        <div class="section-title">Post-Processing & Extras</div>
+        <div class="form-group">
+          <label for="starsSelect">Heat Meter (Wanted Stars)</label>
+          <select id="starsSelect">
+            <option value="5">★★★★★ 5-Star Heat</option>
+            <option value="4">★★★★☆ 4-Star Heat</option>
+            <option value="3">★★★☆☆ 3-Star Heat</option>
+            <option value="2">★★☆☆☆ 2-Star Heat</option>
+            <option value="1">★☆☆☆☆ 1-Star Heat</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="badgeTextInput">Badge Ribbon Label</label>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input type="text" id="badgeTextInput" value="VICE CITY NIGHTS" style="flex: 1;">
+            <label style="margin: 0; display: flex; align-items: center; gap: 4px; font-size: 11px;">
+              <input type="checkbox" id="showBadgeCheck" checked> Show
+            </label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="grainSlider">Film Grain Intensity</label>
+          <div class="slider-container">
+            <input type="range" id="grainSlider" min="0" max="1" step="0.05" value="0.35">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="vignetteSlider">Vignette Darkness</label>
+          <div class="slider-container">
+            <input type="range" id="vignetteSlider" min="0" max="1" step="0.05" value="0.45">
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Export Actions -->
+      <div class="control-section export-panel">
+        <div class="section-title">Export PNG Presets</div>
+        <div class="export-grid">
+          <button type="button" class="btn" id="exportSquareBtn" title="1080x1080 PNG">Square</button>
+          <button type="button" class="btn" id="exportStoryBtn" title="1080x1350 PNG">Story</button>
+          <button type="button" class="btn" id="exportLandscapeBtn" title="1920x1080 PNG">Cinema</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Canvas Preview Viewport -->
+    <main class="studio-main">
+      <div class="canvas-wrapper">
+        <canvas id="previewCanvas" width="1080" height="1080"></canvas>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>

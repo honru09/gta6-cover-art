@@ -1,0 +1,6 @@
+[
+  { "name": "1-cover.jpg", "query": "?shot=cover&photo=pier&caption=SUNSET%20HEIST&sub=Vice%20City%20Nights&layout=four_panel&grade=sunset_gradient", "w": 1080, "h": 1080 },
+  { "name": "2-editor.jpg", "query": "?shot=editor&photo=boulevard&caption=BOULEVARD%20QUEEN&sub=Ocean%20Drive&layout=hero_three&grade=neon_night", "w": 1280, "h": 720 },
+  { "name": "3-cover-nine.jpg", "query": "?shot=cover&photo=boulevard&caption=NEON%20SYNDICATE&sub=Night%20Shift&layout=nine_panel&grade=teal_orange", "w": 1080, "h": 1080 },
+  { "name": "4-export.jpg", "query": "?shot=cover&photo=boulevard&caption=CRIME%20WAVE&sub=Leonida%20Underworld&layout=full_bleed&grade=halftone_bw", "w": 1080, "h": 1080 }
+]
