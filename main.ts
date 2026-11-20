@@ -22,10 +22,10 @@ async function runPackaging(): Promise<void> {
   const screenshotsDestination: string = path.join(outPath, 'screenshots');
 
   // Prepare clean output structure
-  if (fs.existsSync(outPath)) {
-    fs.rmSync(outPath, { recursive: true, force: true });
-  }
   fs.mkdirSync(outPath, { recursive: true });
+  for (const entry of fs.readdirSync(outPath)) {
+    fs.rmSync(path.join(outPath, entry), { recursive: true, force: true });
+  }
 
   // Copy app directory tree
   if (fs.existsSync(appSource)) {
